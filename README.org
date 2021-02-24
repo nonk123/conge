@@ -1,0 +1,4 @@
+* conge
+
+ConGE is a header-only library which allows making /real-time display/
+games for the Windows console.
