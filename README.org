@@ -1,4 +1,11 @@
 * conge
 
-ConGE is a header-only library which allows making /real-time display/
-games for the Windows console.
+ConGE is a header-only game library for Windows.
+
+Small usage example: [[conge_test.c]].
+
+Features:
+- Simple API. 5 LOC is enough to get you started.
+- Real-time rendering in the /Windows console/.
+- 16 colors support. ASCII characters add more flavour.
+- Runs in any resolution. Verified to work in 60 FPS (see [[https://github.com/nonk123/micraneft][my game]]).

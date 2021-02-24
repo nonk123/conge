@@ -1,3 +1,7 @@
 \#*\#
 .\#*
 *~
+
+# Testing stuff.
+*.exe
+*.obj
