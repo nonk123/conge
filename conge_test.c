@@ -44,6 +44,19 @@ void my_tick(conge_ctx* ctx)
 
   /* This is how you would alter the pixels in the frame. */
   conge_get_pixel(ctx, x, y)->character = '*';
+
+  /* Display a simple FPS counter. */
+  {
+    char fps_string[64];
+    sprintf(fps_string, "FPS: %d", ctx->fps); /* get the current FPS */
+    /* Write the FPS in the top-left corner of the screen. */
+    conge_write_string(ctx, fps_string, 0, 0, CONGE_BLACK, CONGE_WHITE);
+  }
+
+  /*
+   * NOTE: ctx->delta and ctx->timestep are not shown here.
+   * The latter is recommended for physics as it is constant.
+   */
 }
 
 int main()

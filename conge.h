@@ -1,4 +1,6 @@
 #include <stdlib.h>
+#include <stdio.h> /* sprintf is useful for conge_write_string */
+#include <string.h>
 #include <io.h>
 #include <math.h>
 #include <sys/timeb.h>
@@ -25,6 +27,7 @@ typedef struct conge_ctx {
   conge_frame frame; /* the frame being rendered */
   int rows, cols; /* read-only: window size in characters */
   double delta; /* read-only: previous frame's delta time */
+  double timestep; /* read-only: the fixed timestep for specified FPS */
   /* Access the elements with the scancode constants. */
   conge_bool keys[CONGE_SCANCODE_COUNT]; /* if true, the key is down */
   int scroll; /* forward if 1, backward if -1, and no scrolling if 0. */
@@ -185,6 +188,32 @@ static conge_pixel* conge_get_pixel(conge_ctx* ctx, int x, int y)
 }
 
 /*
+ * Write a string with specified position and color onto the frame.
+ *
+ * If it doesn't fit, it gets cut off.
+ */
+static void conge_write_string(conge_ctx* ctx, char* string, int x, int y, conge_color fg, conge_color bg)
+{
+  int i, len = strlen(string);
+
+  for (i = 0; i < len; i++)
+    {
+      int char_x = x + i;
+
+      if (char_x > ctx->cols)
+        break;
+      else
+        {
+          conge_pixel* pixel = conge_get_pixel(ctx, char_x, y);
+
+          pixel->character = string[i];
+          pixel->fg = fg;
+          pixel->bg = bg;
+        }
+    }
+}
+
+/*
  * For internal use: disable the display of the console cursor.
  */
 static void conge_disable_cursor(conge_ctx* ctx)
@@ -334,8 +363,6 @@ static void conge_handle_input(conge_ctx* ctx)
  */
 static void conge_run(conge_ctx* ctx, conge_callback tick, int max_fps)
 {
-  const double min_delta = 1.0 / max_fps;
-
   struct timeb start, end; /* used for measuring delta */
 
   /* FPS measurement. */
@@ -344,6 +371,8 @@ static void conge_run(conge_ctx* ctx, conge_callback tick, int max_fps)
 
   int screen_area = 0; /* used to detect changes in resolution */
   int buffer_size, prev_buffer_size = 0;
+
+  ctx->timestep = 1.0 / max_fps;
 
   /* Enable mouse support. */
   DWORD mouse_flags = ENABLE_MOUSE_INPUT | ENABLE_EXTENDED_FLAGS;
@@ -389,10 +418,10 @@ static void conge_run(conge_ctx* ctx, conge_callback tick, int max_fps)
       ctx->delta = (end.time - start.time) + 0.001 * (end.millitm - start.millitm);
 
       /* Sleep in order to prevent the game from running too quickly. */
-      if (ctx->delta < min_delta)
+      if (ctx->delta < ctx->timestep)
         {
-          Sleep(1000 * (min_delta - ctx->delta));
-          ctx->delta = min_delta;
+          Sleep(1000 * (ctx->timestep - ctx->delta));
+          ctx->delta = ctx->timestep;
         }
 
       second += ctx->delta;
