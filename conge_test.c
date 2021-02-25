@@ -3,7 +3,8 @@
 static int x = 0, y = 0;
 
 /* This will be called every frame before rendering it. */
-void my_tick(conge_ctx* ctx)
+void
+my_tick (conge_ctx* ctx)
 {
   /* Exit the game if escape is pressed. */
   if (ctx->keys[CONGE_ESC])
@@ -11,6 +12,9 @@ void my_tick(conge_ctx* ctx)
       ctx->exit = 1;
       return;
     }
+
+  /* Set the window title. */
+  strcpy (ctx->title, "conge test");
 
   /* Check if the left mouse button is pressed. */
   if (ctx->buttons & CONGE_LMB)
@@ -43,14 +47,14 @@ void my_tick(conge_ctx* ctx)
     y = ctx->rows - 1;
 
   /* This is how you would alter the pixels in the frame. */
-  conge_get_pixel(ctx, x, y)->character = '*';
+  conge_get_pixel (ctx, x, y)->character = '*';
 
   /* Display a simple FPS counter. */
   {
     char fps_string[64];
-    sprintf(fps_string, "FPS: %d", ctx->fps); /* get the current FPS */
+    sprintf (fps_string, "FPS: %d", ctx->fps); /* get the current FPS */
     /* Write the FPS in the top-left corner of the screen. */
-    conge_write_string(ctx, fps_string, 0, 0, CONGE_BLACK, CONGE_WHITE);
+    conge_write_string (ctx, fps_string, 0, 0, CONGE_BLACK, CONGE_WHITE);
   }
 
   /*
@@ -59,17 +63,18 @@ void my_tick(conge_ctx* ctx)
    */
 }
 
-int main()
+int
+main (void)
 {
-  conge_ctx* ctx = conge_init();
+  conge_ctx* ctx = conge_init ();
 
   /*
    * Run my_tick 24 times a second.
    * In a real game, you'd be using between 30 and 60 FPS.
    */
-  conge_run(ctx, my_tick, 24);
+  conge_run (ctx, my_tick, 24);
 
-  conge_free(ctx);
+  conge_free (ctx);
 
   return 0;
 }

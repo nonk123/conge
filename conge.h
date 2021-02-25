@@ -30,17 +30,18 @@ struct conge_pixel
 typedef struct conge_ctx conge_ctx;
 struct conge_ctx
 {
-  /* Public API. */
-  conge_pixel* frame; /* the frame being rendered */
-  int rows, cols; /* read-only: window size in characters */
-  double delta; /* read-only: previous frame's delta time */
-  double timestep; /* read-only: the fixed timestep for specified FPS */
+  /* Public API. Read-only unless specified otherwise. */
+  conge_pixel* frame; /* output: the frame being rendered */
+  int rows, cols; /* window size in characters */
+  double delta; /* previous frame's delta time */
+  double timestep; /* the fixed timestep for specified FPS */
   conge_bool keys[CONGE_SCANCODE_COUNT]; /* if true, that key is down */
   int scroll; /* forward if 1, backward if -1, and no scrolling if 0. */
   char buttons; /* the mouse button is held if its respective flag is set */
   int mouse_x, mouse_y; /* character the position the mouse is hovering over */
-  conge_bool exit; /* when set to true, the program will exit */
-  int fps; /* read-only: the current FPS */
+  conge_bool exit; /* output: when set to true, the program will exit */
+  int fps; /* the current FPS */
+  char title[128]; /* output: the console window title */
 
   /* Internal API. Avoid at all cost! */
   struct
@@ -52,7 +53,7 @@ struct conge_ctx
   } internal;
 };
 
-/* The function called every tick before rendering. */
+/* The function called before rendering each frame. */
 typedef void (*conge_callback) (conge_ctx* ctx);
 
 /* TODO: add mouse wheel click. */
@@ -420,6 +421,8 @@ conge_run (conge_ctx* ctx, conge_callback tick, int max_fps)
       conge_handle_input (ctx);
       tick (ctx);
       conge_draw_frame (ctx);
+
+      SetConsoleTitle (ctx->title);
 
       ftime (&end);
 
