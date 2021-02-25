@@ -4,8 +4,10 @@ ConGE is a header-only game library for Windows.
 
 Small usage example: [[conge_test.c]].
 
-Features:
-- Simple API. 5 LOC is enough to get you started.
+** Features
+
+- Simple API: 5 LOC is enough to get you started.
 - Real-time rendering in the /Windows console/.
-- 16 colors support. ASCII characters add more flavour.
+- 16 colors and 256 ASCII characters to choose from.
+- Keyboard and mouse input support.
 - Runs in any resolution. Verified to work in 60 FPS (see [[https://github.com/nonk123/micraneft][my game]]).

@@ -1,26 +1,36 @@
 #include <stdlib.h>
-#include <stdio.h>
+#include <io.h>
+#include <math.h>
 #include <sys/timeb.h>
 
 #include <windows.h>
 
 // clang-format off
 
-typedef unsigned char color_t;
+typedef unsigned char conge_color;
+typedef char conge_bool;
 
 typedef struct conge_pixel {
   unsigned char character;
-  color_t fg, bg; /* character and background color */
+  conge_color fg, bg; /* character and background color */
 } conge_pixel;
 
 typedef conge_pixel* conge_frame;
+
+/* How many scancodes  */
+#define CONGE_SCANCODE_COUNT 256
 
 typedef struct conge_ctx {
   /* Public API. */
   conge_frame frame; /* the frame being rendered */
   int rows, cols; /* read-only: window size in characters */
   double delta; /* read-only: previous frame's delta time */
-  char exit; /* when set to true, the program will exit */
+  /* Access the elements with the scancode constants. */
+  conge_bool keys[CONGE_SCANCODE_COUNT]; /* if true, the key is down */
+  int scroll; /* forward if 1, backward if -1, and no scrolling if 0. */
+  char buttons; /* the mouse button is held if its respective flag is set */
+  int mouse_x, mouse_y; /* character the position the mouse is hovering over */
+  conge_bool exit; /* when set to true, the program will exit */
   int fps; /* read-only: the current FPS */
   /* Internal API. Avoid at all cost! */
   struct {
@@ -34,7 +44,7 @@ typedef struct conge_ctx {
 /* The function called every tick before rendering. */
 typedef void (*conge_callback)(conge_ctx* ctx);
 
-enum conge_color {
+enum conge_color_names {
   CONGE_BLACK,
   CONGE_BLUE,
   CONGE_GREEN,
@@ -53,15 +63,94 @@ enum conge_color {
   CONGE_BWHITE,
 };
 
+/* No wheel click yet. */
+#define CONGE_LMB FROM_LEFT_1ST_BUTTON_PRESSED
+#define CONGE_RMB RIGHTMOST_BUTTON_PRESSED
+
+/* Named after their US-layout symbols. */
+enum conge_scancode_names {
+  CONGE_EMPTY,
+  CONGE_ESC,
+  CONGE_1,
+  CONGE_2,
+  CONGE_3,
+  CONGE_4,
+  CONGE_5,
+  CONGE_6,
+  CONGE_7,
+  CONGE_8,
+  CONGE_9,
+  CONGE_0,
+  CONGE_HYPHEN,
+  CONGE_EQUALS,
+  CONGE_BACKSPACE,
+  CONGE_TAB,
+  CONGE_Q,
+  CONGE_W,
+  CONGE_E,
+  CONGE_R,
+  CONGE_T,
+  CONGE_Y,
+  CONGE_U,
+  CONGE_I,
+  CONGE_O,
+  CONGE_P,
+  CONGE_LEFT_BRACKET,
+  CONGE_RIGHT_BRACKET,
+  CONGE_ENTER,
+  CONGE_LCTRL,
+  CONGE_A,
+  CONGE_S,
+  CONGE_D,
+  CONGE_F,
+  CONGE_G,
+  CONGE_H,
+  CONGE_J,
+  CONGE_K,
+  CONGE_L,
+  CONGE_SEMICOLON,
+  CONGE_QUOTE,
+  CONGE_GRAVE, /* also known as tilde */
+  CONGE_LSHIFT,
+  CONGE_BACKSLASH,
+  CONGE_Z,
+  CONGE_X,
+  CONGE_C,
+  CONGE_V,
+  CONGE_B,
+  CONGE_N,
+  CONGE_M,
+  CONGE_COMMA,
+  CONGE_FULL_STOP,
+  CONGE_SLASH,
+  CONGE_RSHIFT,
+  CONGE_PRT_SCR,
+  CONGE_LALT,
+  CONGE_SPACEBAR,
+  CONGE_CAPS_LOCK,
+  /* TODO: add more. */
+};
+
 /* The empty, "clear" pixel. */
-conge_pixel conge_empty = {' ', CONGE_BLACK, CONGE_BLACK};
+static conge_pixel conge_empty = {' ', CONGE_WHITE, CONGE_BLACK};
 
 static conge_ctx* conge_init()
 {
+  int i;
+
   conge_ctx* ctx = malloc(sizeof(conge_ctx));
 
   ctx->exit = 0;
   ctx->fps = 0;
+
+  ctx->scroll = 0;
+  ctx->buttons = 0;
+
+  ctx->mouse_x = 0;
+  ctx->mouse_y = 0;
+
+  for (i = 0; i < CONGE_SCANCODE_COUNT; i++)
+    ctx->keys[i] = 0;
 
   ctx->frame = NULL;
 
@@ -125,7 +214,7 @@ static void conge_get_window_size(conge_ctx* ctx)
  */
 static void conge_move_cursor_to(conge_ctx* ctx, int x, int y)
 {
-  /* putchar can move the cursor to the right on the same line. */
+  /* Writing to stdout moves the cursor right anyways. */
   if (ctx->internal.cursor_y != y || ctx->internal.cursor_x != x - 1)
     {
       COORD coord;
@@ -152,29 +241,93 @@ static void conge_set_text_color(conge_ctx* ctx, int color)
     }
 }
 
+#define CONGE_STDOUT 1
+
 /*
- * Draw the current frame with double-buffering.
+ * Internal: draw the current frame with double-buffering.
  */
 static void conge_draw_frame(conge_ctx* ctx)
 {
   int x, y;
 
+  /* Kludge: trigger the initial cursor movement. */
+  ctx->internal.cursor_x = -2;
+  ctx->internal.cursor_y = 0;
+
   for (y = 0; y < ctx->rows; y++)
     for (x = 0; x < ctx->cols; x++)
       {
-        conge_pixel* pixel = conge_get_pixel(ctx, x, y);
+        conge_pixel* front = conge_get_pixel(ctx, x, y);
         conge_pixel* back = &ctx->internal.backbuffer[ctx->rows * x + y];
 
-        /* If the front and back pixels differ, we print the front one. */
-        if (pixel->character != back->character
-            || pixel->fg != back->fg || pixel->bg != back->bg)
+        /* If front and back pixels differ, print the front one. */
+        if (front->character != back->character
+            || front->fg != back->fg || front->bg != back->bg)
           {
             conge_move_cursor_to(ctx, x, y);
-            conge_set_text_color(ctx, (16 * pixel->bg) + pixel->fg);
-            putchar(pixel->character);
+            conge_set_text_color(ctx, (16 * front->bg) + front->fg);
+            _write(CONGE_STDOUT, &front->character, 1);
+
+            *back = *front;
           }
       }
+
+  /* Prevent visual glitches. */
+  conge_move_cursor_to(ctx, 0, 0);
 }
+
+#undef CONGE_STDOUT
+
+#define CONGE_INPUT_BUFFER 10
+
+/*
+ * Internal: populate the input-related variables.
+ */
+static void conge_handle_input(conge_ctx* ctx)
+{
+  int i;
+
+  INPUT_RECORD records[CONGE_INPUT_BUFFER];
+  DWORD count;
+
+  ctx->scroll = 0;
+
+  GetNumberOfConsoleInputEvents(ctx->internal.input, &count);
+
+  if (!count)
+    return;
+
+  ReadConsoleInput(ctx->internal.input, records, CONGE_INPUT_BUFFER, &count);
+
+  for (i = 0; i < count; i++)
+    {
+      if (records[i].EventType == KEY_EVENT)
+        {
+          KEY_EVENT_RECORD event = records[i].Event.KeyEvent;
+          WORD scancode = event.wVirtualScanCode;
+
+          if (scancode < CONGE_SCANCODE_COUNT)
+            ctx->keys[scancode] = event.bKeyDown;
+        }
+      else if (records[i].EventType == MOUSE_EVENT)
+        {
+          MOUSE_EVENT_RECORD event = records[i].Event.MouseEvent;
+
+          ctx->mouse_x = event.dwMousePosition.X;
+          ctx->mouse_y = event.dwMousePosition.Y;
+
+          if (event.dwEventFlags & MOUSE_WHEELED)
+            {
+              int scroll = event.dwButtonState;
+              ctx->scroll = scroll / abs(scroll);
+            }
+
+          ctx->buttons = event.dwButtonState;
+        }
+    }
+}
+
+#undef CONGE_INPUT_BUFFER
 
 /*
  * Run the conge mainloop with a maximum FPS, calling TICK every frame.
@@ -192,7 +345,9 @@ static void conge_run(conge_ctx* ctx, conge_callback tick, int max_fps)
   int screen_area = 0; /* used to detect changes in resolution */
   int buffer_size, prev_buffer_size = 0;
 
-  conge_disable_cursor(ctx);
+  /* Enable mouse support. */
+  DWORD mouse_flags = ENABLE_MOUSE_INPUT | ENABLE_EXTENDED_FLAGS;
+  SetConsoleMode(ctx->internal.input, mouse_flags);
 
   while (!ctx->exit)
     {
@@ -208,26 +363,29 @@ static void conge_run(conge_ctx* ctx, conge_callback tick, int max_fps)
       ctx->frame = malloc(buffer_size);
       ctx->internal.backbuffer = realloc(ctx->internal.backbuffer, buffer_size);
 
+      /* Clear the screen. */
       for (i = 0; i < screen_area; i++)
         ctx->frame[i] = conge_empty;
 
       /* Force a redraw when the window size changes. */
       if (prev_buffer_size != buffer_size)
         {
+          conge_disable_cursor(ctx); /* the cursor reactivates after a resize */
           memset(ctx->internal.backbuffer, 0, buffer_size); /* fill with junk */
           prev_buffer_size = buffer_size;
         }
 
+      conge_handle_input(ctx);
       tick(ctx);
       conge_draw_frame(ctx);
 
-      /* Save the current frame in the backbuffer. */
-      memcpy(ctx->internal.backbuffer, ctx->frame, buffer_size);
+      /* Dispose of the unneeded frame. */
       free(ctx->frame);
       ctx->frame = NULL;
 
       ftime(&end);
 
+      /* Measure the delta time in seconds. */
       ctx->delta = (end.time - start.time) + 0.001 * (end.millitm - start.millitm);
 
       /* Sleep in order to prevent the game from running too quickly. */
