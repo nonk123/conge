@@ -1,0 +1,3 @@
+BasedOnStyle: GNU
+AlwaysBreakAfterReturnType: TopLevel
+PointerAlignment: Left

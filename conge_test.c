@@ -52,9 +52,13 @@ my_tick (conge_ctx* ctx)
   /* Display a simple FPS counter. */
   {
     char fps_string[64];
-    sprintf (fps_string, "FPS: %d", ctx->fps); /* get the current FPS */
-    /* Write the FPS in the top-left corner of the screen. */
-    conge_write_string (ctx, fps_string, 0, 0, CONGE_BLACK, CONGE_WHITE);
+    int y = ctx->rows - 1, x = ctx->cols;
+
+    /* Get the current FPS and right-align it. */
+    x -= sprintf (fps_string, "FPS: %d", ctx->fps);
+
+    /* Write the FPS in the bottom-right corner of the screen. */
+    conge_write_string (ctx, fps_string, x, y, CONGE_BLACK, CONGE_WHITE);
   }
 
   /*
@@ -66,15 +70,23 @@ my_tick (conge_ctx* ctx)
 int
 main (void)
 {
+  int exit;
   conge_ctx* ctx = conge_init ();
+
+  if (ctx == NULL)
+    return 1;
 
   /*
    * Run my_tick 24 times a second.
    * In a real game, you'd be using between 30 and 60 FPS.
    */
-  conge_run (ctx, my_tick, 24);
+  exit = conge_run (ctx, my_tick, 24);
 
-  conge_free (ctx);
+  if (ctx != NULL)
+    {
+      conge_free (ctx);
+      ctx = NULL;
+    }
 
-  return 0;
+  return exit;
 }
