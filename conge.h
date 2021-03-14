@@ -6,13 +6,19 @@
 #include <stdio.h> /* sprintf is useful for conge_write_string */
 #include <string.h>
 #include <io.h>
-#include <math.h>
 #include <sys/timeb.h>
+
+/* Make sure the math constants are defined. */
+#define _USE_MATH_DEFINES
+#include <math.h>
 
 #include <windows.h>
 
 /* How many scancodes are supported. */
 #define CONGE_SCANCODE_COUNT 256
+
+#define CONGE_MIN(A, B) ((A) < (B) ? (A) : (B))
+#define CONGE_MAX(A, B) ((A) > (B) ? (A) : (B))
 
 typedef unsigned char conge_color;
 
@@ -189,13 +195,16 @@ conge_init (void)
 }
 
 /*
- * Free a conge_ctx object.
+ * Free a conge_ctx object. Do nothing if it's already null.
  */
 void
 conge_free (conge_ctx* ctx)
 {
   if (ctx != NULL)
-    free (ctx);
+    {
+      free (ctx);
+      ctx = NULL;
+    }
 }
 
 /*
@@ -217,18 +226,78 @@ conge_get_pixel (conge_ctx* ctx, int x, int y)
 }
 
 /*
+ * Fill the specified screen position with PIXEL.
+ * Skip if X or Y are out of bounds.
+ *
+ * Return codes:
+ *   0 on success.
+ *   1 if CTX is null.
+ */
+int
+conge_fill (conge_ctx* ctx, int x, int y, conge_pixel pixel)
+{
+  if (ctx == NULL)
+    return 1;
+
+  if (x >= 0 && y >= 0 && x < ctx->cols && y < ctx->rows)
+    *conge_get_pixel (ctx, x, y) = pixel;
+
+  return 0;
+}
+
+/*
+ * Draw a line between two points, filled with the specified pixel.
+ *
+ * Return codes:
+ *   0 on success.
+ *   1 if CTX is null.
+ */
+int
+conge_draw_line (conge_ctx* ctx, int x0, int y0, int x1, int y1, conge_pixel fill)
+{
+  int i = 0;
+
+  double x = x0, y = y0;
+  double dx = x1 - x0, dy = y1 - y0;
+  double step = CONGE_MAX (fabs (dx), fabs (dy));
+
+  if (ctx == NULL)
+    return 1;
+
+  /* Special case: just a dot. */
+  if (step <= 0.01)
+    {
+      conge_fill (ctx, x0, y0, fill);
+      return 0;
+    }
+
+  dx /= step;
+  dy /= step;
+
+  while (i++ < step)
+    {
+      conge_fill (ctx, round (x), round (y), fill);
+      x += dx;
+      y += dy;
+    }
+
+  return 0;
+}
+
+/*
  * Write a string with specified position and color onto the frame.
  *
  * If it doesn't fit, it gets cut off.
  *
  * Return codes:
+ *   0 on success.
  *   1 if CTX is null.
  *   2 if STRING is null.
  */
 int
 conge_write_string (conge_ctx* ctx, char* string, int x, int y, conge_color fg, conge_color bg)
 {
-  int i, len;
+  int i;
 
   if (ctx == NULL)
     return 1;
@@ -236,9 +305,7 @@ conge_write_string (conge_ctx* ctx, char* string, int x, int y, conge_color fg, 
   if (string == NULL)
     return 2;
 
-  len = strlen (string);
-
-  for (i = 0; i < len; i++)
+  for (i = 0; i < strlen (string); i++)
     {
       int char_x = x + i;
 
@@ -253,6 +320,8 @@ conge_write_string (conge_ctx* ctx, char* string, int x, int y, conge_color fg, 
           pixel->bg = bg;
         }
     }
+
+  return 0;
 }
 
 /*

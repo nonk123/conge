@@ -25,15 +25,10 @@ my_tick (conge_ctx* ctx)
     }
   else
     {
-      /* Keyboard handling example. */
-      x -= ctx->keys[CONGE_A];
-      x += ctx->keys[CONGE_D];
-      y += ctx->keys[CONGE_S];
-      y -= ctx->keys[CONGE_W];
+      /* Keyboard and scrolling example. */
+      x += ctx->keys[CONGE_D] - ctx->keys[CONGE_A];
+      y += ctx->keys[CONGE_S] - ctx->keys[CONGE_W] - ctx->scroll;
     }
-
-  /* Scrolling example. */
-  y -= ctx->scroll;
 
   if (x < 0)
     x = 0;
@@ -46,8 +41,18 @@ my_tick (conge_ctx* ctx)
   if (y >= ctx->rows)
     y = ctx->rows - 1;
 
-  /* This is how you would alter the pixels in the frame. */
-  conge_get_pixel (ctx, x, y)->character = '*';
+  {
+    /* White rectangle. */
+    conge_pixel fill = {' ', CONGE_BLACK, CONGE_WHITE};
+
+    /* Helper functions. They won't draw outside of screen bounds. */
+    conge_draw_line (ctx, 9, 9, 47, 14, fill);
+    conge_draw_line (ctx, 6, 100, 6, 30, fill);
+    conge_fill (ctx, 4, 4, fill);
+
+    /* Direct access. Might segfault if X or Y are out of screen bounds. */
+    conge_get_pixel (ctx, x, y)->character = '*';
+  }
 
   /* Display a simple FPS counter. */
   {
