@@ -2,6 +2,7 @@
 .\#*
 *~
 
-# Testing stuff.
-*.exe
+conge_test.exe
+conge.dll
+conge.lib
 *.obj

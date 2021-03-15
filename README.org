@@ -1,6 +1,6 @@
 * conge
 
-ConGE is a header-only graphics engine for Windows.
+ConGE is a console graphics engine for Windows.
 
 An API overview can be found in [[conge_test.c]].
 
@@ -11,3 +11,8 @@ An API overview can be found in [[conge_test.c]].
 - 16 colors and 256 ASCII characters to choose from.
 - Support for keyboard and mouse input.
 - Runs in any resolution. Verified to work in 60 FPS (see [[https://github.com/nonk123/micraneft][my game]]).
+
+** Building
+
+The provided =Makefile= works with =nmake=. The default target builds
+ConGE as shared library, and the =test= target compiles [[conge_test.c]].

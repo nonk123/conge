@@ -2,6 +2,9 @@
  * conge.h - a console graphics engine.
  */
 
+#ifndef _CONGE_H
+#define _CONGE_H
+
 #include <stdlib.h>
 #include <stdio.h> /* sprintf is useful for conge_write_string */
 #include <string.h>
@@ -12,6 +15,7 @@
 #define _USE_MATH_DEFINES
 #include <math.h>
 
+#define _WIN32_WINNT 0x0500
 #include <windows.h>
 
 /* How many scancodes are supported. */
@@ -19,6 +23,8 @@
 
 #define CONGE_MIN(A, B) ((A) < (B) ? (A) : (B))
 #define CONGE_MAX(A, B) ((A) > (B) ? (A) : (B))
+
+#define CONGE_EXPORT __declspec (dllexport)
 
 typedef unsigned char conge_color;
 
@@ -40,9 +46,11 @@ struct conge_ctx
   double delta; /* previous frame's delta time */
   double timestep; /* the fixed timestep for specified FPS */
   conge_bool keys[CONGE_SCANCODE_COUNT]; /* if true, that key is down */
-  int scroll; /* forward if 1, backward if -1, and no scrolling if 0. */
-  char buttons; /* the mouse button is held if its respective flag is set */
-  int mouse_x, mouse_y; /* character the position the mouse is hovering over */
+  int scroll; /* forward if 1, backward if -1, and no scrolling if 0 */
+  char buttons; /* a mouse button is held if its respective flag is set */
+  int mouse_x, mouse_y; /* the character the mouse is hovering over */
+  int mouse_dx, mouse_dy; /* mouse position relative to the previous frame */
+  conge_bool grab; /* output: set this to grab/ungrab the mouse */
   conge_bool exit; /* output: when set to true, the program will exit */
   int fps; /* the current FPS */
   char title[128]; /* output: the console window title */
@@ -51,6 +59,7 @@ struct conge_ctx
   struct
   {
     HANDLE input, output; /* console IO handles */
+    HWND c_window; /* console window handle */
     conge_pixel* backbuffer; /* double-buffering support */
     int cursor_x, cursor_y; /* prevent unnecessary cursor movements */
     int last_color; /* prevent changing the color for every pixel */
@@ -64,7 +73,82 @@ typedef void (*conge_callback) (conge_ctx* ctx);
 #define CONGE_LMB FROM_LEFT_1ST_BUTTON_PRESSED
 #define CONGE_RMB RIGHTMOST_BUTTON_PRESSED
 
-enum conge_color_names
+/*
+ * Initialize a new conge context. Return NULL if malloc failed.
+ */
+CONGE_EXPORT conge_ctx* conge_init (void);
+
+/*
+ * Run the conge mainloop with a maximum FPS, calling TICK every frame.
+ *
+ * Return codes:
+ *   0 on success.
+ *   1 if CTX hasn't been initialized.
+ *   2 if TICK is null.
+ *   3 if max_fps is negative or zero.
+ *   4 if a memory error has occured.
+ */
+CONGE_EXPORT int conge_run (conge_ctx*, conge_callback, int);
+
+/*
+ * Free a conge_ctx object. Do nothing if it's already null.
+ */
+CONGE_EXPORT void conge_free (conge_ctx*);
+
+/*
+ * Return the pixel at specified position from the current frame.
+ *
+ * (0; 0) is the top-left corner of the screen. The pixel can be altered.
+ *
+ * Only use inside the tick callback!
+ *
+ * Return null if X or Y are out of screen bounds, or CTX is null.
+ */
+CONGE_EXPORT conge_pixel* conge_get_pixel (conge_ctx*, int, int);
+
+/*
+ * Fill the specified screen position with PIXEL.
+ * Skip if X or Y are out of bounds.
+ *
+ * Return codes:
+ *   0 on success.
+ *   1 if CTX is null.
+ */
+CONGE_EXPORT int conge_fill (conge_ctx*, int, int, conge_pixel);
+
+/*
+ * Draw a line between two points, filled with the specified pixel.
+ *
+ * Return codes:
+ *   0 on success.
+ *   1 if CTX is null.
+ */
+CONGE_EXPORT int conge_draw_line (conge_ctx*, int, int, int, int, conge_pixel);
+
+/*
+ * Write a string with specified position and color onto the frame.
+ *
+ * If it doesn't fit, it gets cut off.
+ *
+ * Return codes:
+ *   0 on success.
+ *   1 if CTX is null.
+ *   2 if STRING is null.
+ */
+CONGE_EXPORT int conge_write_string (conge_ctx*, char*, int, int, conge_color, conge_color);
+
+/*
+ * Internal: draw the current frame.
+ */
+void conge_draw_frame (conge_ctx*);
+
+/*
+ * Internal: handle input for the frame.
+ */
+void conge_handle_input (conge_ctx*);
+
+/* Color names. */
+enum
   {
     CONGE_BLACK,
     CONGE_BLUE,
@@ -84,8 +168,8 @@ enum conge_color_names
     CONGE_BWHITE,
   };
 
-/* Named after their US-layout symbols. */
-enum conge_scancode_names
+/* Scancodes named after their US keycaps. */
+enum
   {
     CONGE_EMPTY,
     CONGE_ESC,
@@ -146,444 +230,34 @@ enum conge_scancode_names
     CONGE_LALT,
     CONGE_SPACEBAR,
     CONGE_CAPS_LOCK,
-    /* TODO: add more. */
+    CONGE_F1,
+    CONGE_F2,
+    CONGE_F3,
+    CONGE_F4,
+    CONGE_F5,
+    CONGE_F6,
+    CONGE_F7,
+    CONGE_F8,
+    CONGE_F9,
+    CONGE_F10,
+    CONGE_NUMLOCK,
+    CONGE_SCROLL_LOCK,
+    CONGE_KP_7,
+    CONGE_KP_8,
+    CONGE_KP_9,
+    CONGE_KP_MINUS,
+    CONGE_KP_4,
+    CONGE_KP_5,
+    CONGE_KP_6,
+    CONGE_KP_PLUS,
+    CONGE_KP_1,
+    CONGE_KP_2,
+    CONGE_KP_3,
+    CONGE_KP_0,
+    CONGE_KP_DOT,
   };
 
 /* The empty, "clear" pixel. */
 static conge_pixel conge_empty = {' ', CONGE_WHITE, CONGE_BLACK};
 
-/*
- * Initialize a new conge context. Return NULL if malloc failed.
- */
-conge_ctx*
-conge_init (void)
-{
-  int i;
-
-  conge_ctx* ctx = malloc (sizeof *ctx);
-
-  if (ctx == NULL)
-    return NULL;
-
-  ctx->exit = 0;
-  ctx->fps = 0;
-
-  ctx->scroll = 0;
-  ctx->buttons = 0;
-
-  ctx->mouse_x = 0;
-  ctx->mouse_y = 0;
-
-  for (i = 0; i < CONGE_SCANCODE_COUNT; i++)
-    ctx->keys[i] = 0;
-
-  strcpy (ctx->title, "conge");
-
-  ctx->frame = NULL;
-
-  ctx->internal.input = GetStdHandle (STD_INPUT_HANDLE);
-  ctx->internal.output = GetStdHandle (STD_OUTPUT_HANDLE);
-
-  ctx->internal.cursor_x = 0;
-  ctx->internal.cursor_y = 0;
-
-  ctx->internal.last_color = 0;
-
-  ctx->internal.backbuffer = NULL;
-
-  return ctx;
-}
-
-/*
- * Free a conge_ctx object. Do nothing if it's already null.
- */
-void
-conge_free (conge_ctx* ctx)
-{
-  if (ctx != NULL)
-    {
-      free (ctx);
-      ctx = NULL;
-    }
-}
-
-/*
- * Return the pixel at specified position from the current frame.
- *
- * (0; 0) is the top-left corner of the screen. The pixel can be altered.
- *
- * Only use inside the tick callback!
- *
- * If the specified CTX is null, return null also.
- */
-conge_pixel*
-conge_get_pixel (conge_ctx* ctx, int x, int y)
-{
-  if (ctx == NULL)
-    return NULL;
-  else
-    return &ctx->frame[ctx->rows * x + y];
-}
-
-/*
- * Fill the specified screen position with PIXEL.
- * Skip if X or Y are out of bounds.
- *
- * Return codes:
- *   0 on success.
- *   1 if CTX is null.
- */
-int
-conge_fill (conge_ctx* ctx, int x, int y, conge_pixel pixel)
-{
-  if (ctx == NULL)
-    return 1;
-
-  if (x >= 0 && y >= 0 && x < ctx->cols && y < ctx->rows)
-    *conge_get_pixel (ctx, x, y) = pixel;
-
-  return 0;
-}
-
-/*
- * Draw a line between two points, filled with the specified pixel.
- *
- * Return codes:
- *   0 on success.
- *   1 if CTX is null.
- */
-int
-conge_draw_line (conge_ctx* ctx, int x0, int y0, int x1, int y1, conge_pixel fill)
-{
-  int i = 0;
-
-  double x = x0, y = y0;
-  double dx = x1 - x0, dy = y1 - y0;
-  double step = CONGE_MAX (fabs (dx), fabs (dy));
-
-  if (ctx == NULL)
-    return 1;
-
-  /* Special case: just a dot. */
-  if (step <= 0.01)
-    {
-      conge_fill (ctx, x0, y0, fill);
-      return 0;
-    }
-
-  dx /= step;
-  dy /= step;
-
-  while (i++ < step)
-    {
-      conge_fill (ctx, round (x), round (y), fill);
-      x += dx;
-      y += dy;
-    }
-
-  return 0;
-}
-
-/*
- * Write a string with specified position and color onto the frame.
- *
- * If it doesn't fit, it gets cut off.
- *
- * Return codes:
- *   0 on success.
- *   1 if CTX is null.
- *   2 if STRING is null.
- */
-int
-conge_write_string (conge_ctx* ctx, char* string, int x, int y, conge_color fg, conge_color bg)
-{
-  int i;
-
-  if (ctx == NULL)
-    return 1;
-
-  if (string == NULL)
-    return 2;
-
-  for (i = 0; i < strlen (string); i++)
-    {
-      int char_x = x + i;
-
-      if (char_x >= ctx->cols)
-        break;
-      else
-        {
-          conge_pixel* pixel = conge_get_pixel (ctx, char_x, y);
-
-          pixel->character = string[i];
-          pixel->fg = fg;
-          pixel->bg = bg;
-        }
-    }
-
-  return 0;
-}
-
-/*
- * For internal use: disable the display of the console cursor.
- */
-void
-conge_disable_cursor (conge_ctx* ctx)
-{
-  CONSOLE_CURSOR_INFO info;
-
-  info.dwSize = 100;
-  info.bVisible = FALSE;
-
-  SetConsoleCursorInfo (ctx->internal.output, &info);
-}
-
-/*
- * Used internally to get the console window's size.
- */
-void
-conge_get_window_size (conge_ctx* ctx)
-{
-  CONSOLE_SCREEN_BUFFER_INFO csbi;
-  GetConsoleScreenBufferInfo (ctx->internal.output, &csbi);
-
-  ctx->cols = csbi.srWindow.Right - csbi.srWindow.Left + 1;
-  ctx->rows = csbi.srWindow.Bottom - csbi.srWindow.Top + 1;
-}
-
-/*
- * For internal use: move the cursor unless putchar could do it.
- */
-void
-conge_move_cursor_to (conge_ctx* ctx, int x, int y)
-{
-  /* Writing to stdout moves the cursor right anyways. */
-  if (ctx->internal.cursor_y != y || ctx->internal.cursor_x != x - 1)
-    {
-      COORD coord;
-
-      coord.X = x;
-      coord.Y = y;
-
-      SetConsoleCursorPosition (ctx->internal.output, coord);
-    }
-
-  ctx->internal.cursor_x = x;
-  ctx->internal.cursor_y = y;
-}
-
-/*
- * For internal use: print all subsequent characters in this color.
- */
-void
-conge_set_text_color (conge_ctx* ctx, int color)
-{
-  if (ctx->internal.last_color != color)
-    {
-      SetConsoleTextAttribute (ctx->internal.output, color);
-      ctx->internal.last_color = color;
-    }
-}
-
-/*
- * Internal: draw the current frame with double-buffering.
- */
-void
-conge_draw_frame (conge_ctx* ctx)
-{
-  int x, y;
-
-  /* Kludge: trigger the initial cursor movement. */
-  ctx->internal.cursor_x = -2;
-  ctx->internal.cursor_y = 0;
-
-  for (y = 0; y < ctx->rows; y++)
-    for (x = 0; x < ctx->cols; x++)
-      {
-        conge_pixel* front = conge_get_pixel (ctx, x, y);
-        conge_pixel* back = &ctx->internal.backbuffer[ctx->rows * x + y];
-
-        /* If front and back pixels differ, print the front one. */
-        if (front->character != back->character
-            || front->fg != back->fg || front->bg != back->bg)
-          {
-            conge_move_cursor_to (ctx, x, y);
-            conge_set_text_color (ctx, (16 * front->bg) + front->fg);
-            _write (1, &front->character, 1);
-
-            *back = *front;
-          }
-      }
-
-  /* Prevent visual glitches. */
-  conge_move_cursor_to (ctx, 0, 0);
-}
-
-/*
- * Internal: populate the input-related variables.
- */
-void
-conge_handle_input (conge_ctx* ctx)
-{
-  int i;
-
-  INPUT_RECORD records[10];
-  DWORD count;
-
-  ctx->scroll = 0;
-
-  GetNumberOfConsoleInputEvents (ctx->internal.input, &count);
-
-  if (!count)
-    return;
-
-  ReadConsoleInput (ctx->internal.input, records, 10, &count);
-
-  for (i = 0; i < count; i++)
-    {
-      if (records[i].EventType == KEY_EVENT)
-        {
-          KEY_EVENT_RECORD event = records[i].Event.KeyEvent;
-          WORD scancode = event.wVirtualScanCode;
-
-          if (scancode < CONGE_SCANCODE_COUNT)
-            ctx->keys[scancode] = event.bKeyDown;
-        }
-      else if (records[i].EventType == MOUSE_EVENT)
-        {
-          MOUSE_EVENT_RECORD event = records[i].Event.MouseEvent;
-
-          ctx->mouse_x = event.dwMousePosition.X;
-          ctx->mouse_y = event.dwMousePosition.Y;
-
-          if (event.dwEventFlags & MOUSE_WHEELED)
-            {
-              int scroll = event.dwButtonState;
-              ctx->scroll = scroll / abs (scroll);
-            }
-
-          ctx->buttons = event.dwButtonState;
-        }
-    }
-}
-
-/*
- * Run the conge mainloop with a maximum FPS, calling TICK every frame.
- *
- * Return codes:
- *   0 on success.
- *   1 if CTX hasn't been initialized.
- *   2 if TICK is null.
- *   3 if max_fps is negative or zero.
- *   4 if a memory error has occured.
- */
-int
-conge_run (conge_ctx* ctx, conge_callback tick, int max_fps)
-{
-  struct timeb start, end; /* used for measuring delta */
-
-  /* FPS measurement. */
-  int frames_count = 0;
-  double second = 0.0;
-
-  int screen_area = 0; /* used to detect changes in resolution */
-  int buffer_size, prev_buffer_size = 0;
-
-  int exit = 0;
-
-  if (ctx == NULL)
-    return 1;
-
-  if (tick == NULL)
-    return 2;
-
-  if (max_fps < 1)
-    return 3;
-
-  ctx->timestep = 1.0 / max_fps;
-
-  ctx->frame = NULL;
-  ctx->internal.backbuffer = NULL;
-
-  /* Enable mouse support. */
-  DWORD mouse_flags = ENABLE_MOUSE_INPUT | ENABLE_EXTENDED_FLAGS;
-  SetConsoleMode (ctx->internal.input, mouse_flags);
-
-  while (!ctx->exit)
-    {
-      int i;
-
-      ftime (&start);
-
-      conge_get_window_size (ctx);
-
-      screen_area = ctx->rows * ctx->cols;
-      buffer_size = screen_area * sizeof (conge_pixel);
-
-      ctx->frame = realloc (ctx->frame, buffer_size);
-      ctx->internal.backbuffer = realloc (ctx->internal.backbuffer, buffer_size);
-
-      if (ctx->frame == NULL || ctx->internal.backbuffer == NULL)
-        {
-          exit = 4;
-          break;
-        }
-
-      /* Clear the screen. */
-      for (i = 0; i < screen_area; i++)
-        ctx->frame[i] = conge_empty;
-
-      /* Force a redraw when the window size changes. */
-      if (prev_buffer_size != buffer_size)
-        {
-          conge_disable_cursor (ctx); /* the cursor reactivates after a resize */
-          memset (ctx->internal.backbuffer, 0, buffer_size); /* fill with junk */
-          prev_buffer_size = buffer_size;
-        }
-
-      conge_handle_input (ctx);
-      tick (ctx);
-      conge_draw_frame (ctx);
-
-      SetConsoleTitle (ctx->title);
-
-      ftime (&end);
-
-      /* Measure the delta time in seconds. */
-      ctx->delta = (end.time - start.time) + 0.001 * (end.millitm - start.millitm);
-
-      /* Sleep in order to prevent the game from running too quickly. */
-      if (ctx->delta < ctx->timestep)
-        {
-          Sleep (1000 * (ctx->timestep - ctx->delta));
-          ctx->delta = ctx->timestep;
-        }
-
-      second += ctx->delta;
-      frames_count++;
-
-      if (second >= 1.0)
-        {
-          ctx->fps = frames_count;
-          frames_count = 0;
-          second -= 1.0;
-        }
-    }
-
-  if (ctx->frame != NULL)
-    {
-      free (ctx->frame);
-      ctx->frame = NULL;
-    }
-
-  if (ctx->internal.backbuffer != NULL)
-    {
-      free (ctx->internal.backbuffer);
-      ctx->internal.backbuffer = NULL;
-    }
-
-  /* Fix colors in the console before exiting. */
-  conge_set_text_color (ctx, CONGE_WHITE);
-
-  return exit;
-}
+#endif /* _CONGE_H */

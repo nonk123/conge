@@ -16,8 +16,13 @@ my_tick (conge_ctx* ctx)
   /* Set the window title. */
   strcpy (ctx->title, "conge test");
 
-  /* Check if the left mouse button is pressed. */
-  if (ctx->buttons & CONGE_LMB)
+  if (ctx->grab)
+    {
+      /* When the mouse is grabbed, we use relative mouse position to move. */
+      x += round ( 0.1 * ctx->mouse_dx);
+      y += round (0.05 * ctx->mouse_dy);
+    }
+  else if (ctx->buttons & CONGE_LMB) /* check if LMB is held */
     {
       /* Mouse position is measured in characters on the screen. */
       x = ctx->mouse_x;
@@ -40,6 +45,10 @@ my_tick (conge_ctx* ctx)
     x = ctx->cols - 1;
   if (y >= ctx->rows)
     y = ctx->rows - 1;
+
+  /* Initiate mouse grab. */
+  if (ctx->keys[CONGE_LALT])
+    ctx->grab = !ctx->grab;
 
   {
     /* White rectangle. */
