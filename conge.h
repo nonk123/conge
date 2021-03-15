@@ -21,10 +21,7 @@
 /* How many scancodes are supported. */
 #define CONGE_SCANCODE_COUNT 256
 
-#define CONGE_MIN(A, B) ((A) < (B) ? (A) : (B))
 #define CONGE_MAX(A, B) ((A) > (B) ? (A) : (B))
-
-#define CONGE_EXPORT __declspec (dllexport)
 
 typedef unsigned char conge_color;
 
@@ -76,7 +73,7 @@ typedef void (*conge_callback) (conge_ctx* ctx);
 /*
  * Initialize a new conge context. Return NULL if malloc failed.
  */
-CONGE_EXPORT conge_ctx* conge_init (void);
+conge_ctx* conge_init (void);
 
 /*
  * Run the conge mainloop with a maximum FPS, calling TICK every frame.
@@ -88,12 +85,12 @@ CONGE_EXPORT conge_ctx* conge_init (void);
  *   3 if max_fps is negative or zero.
  *   4 if a memory error has occured.
  */
-CONGE_EXPORT int conge_run (conge_ctx*, conge_callback, int);
+int conge_run (conge_ctx*, conge_callback, int);
 
 /*
  * Free a conge_ctx object. Do nothing if it's already null.
  */
-CONGE_EXPORT void conge_free (conge_ctx*);
+void conge_free (conge_ctx*);
 
 /*
  * Return the pixel at specified position from the current frame.
@@ -104,7 +101,7 @@ CONGE_EXPORT void conge_free (conge_ctx*);
  *
  * Return null if X or Y are out of screen bounds, or CTX is null.
  */
-CONGE_EXPORT conge_pixel* conge_get_pixel (conge_ctx*, int, int);
+conge_pixel* conge_get_pixel (conge_ctx*, int, int);
 
 /*
  * Fill the specified screen position with PIXEL.
@@ -114,7 +111,7 @@ CONGE_EXPORT conge_pixel* conge_get_pixel (conge_ctx*, int, int);
  *   0 on success.
  *   1 if CTX is null.
  */
-CONGE_EXPORT int conge_fill (conge_ctx*, int, int, conge_pixel);
+int conge_fill (conge_ctx*, int, int, conge_pixel);
 
 /*
  * Draw a line between two points, filled with the specified pixel.
@@ -123,7 +120,7 @@ CONGE_EXPORT int conge_fill (conge_ctx*, int, int, conge_pixel);
  *   0 on success.
  *   1 if CTX is null.
  */
-CONGE_EXPORT int conge_draw_line (conge_ctx*, int, int, int, int, conge_pixel);
+int conge_draw_line (conge_ctx*, int, int, int, int, conge_pixel);
 
 /*
  * Write a string with specified position and color onto the frame.
@@ -135,7 +132,7 @@ CONGE_EXPORT int conge_draw_line (conge_ctx*, int, int, int, int, conge_pixel);
  *   1 if CTX is null.
  *   2 if STRING is null.
  */
-CONGE_EXPORT int conge_write_string (conge_ctx*, char*, int, int, conge_color, conge_color);
+int conge_write_string (conge_ctx*, char*, int, int, conge_color, conge_color);
 
 /*
  * Internal: draw the current frame.

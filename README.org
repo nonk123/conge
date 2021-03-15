@@ -15,4 +15,12 @@ An API overview can be found in [[conge_test.c]].
 ** Building
 
 The provided =Makefile= works with =nmake=. The default target builds
-ConGE as shared library, and the =test= target compiles [[conge_test.c]].
+ConGE as a static library, and the =test= target compiles [[conge_test.c]].
+
+Once the library is built, you can compile, i.e., =main.c= with:
+
+#+BEGIN_SRC sh
+cl main.c /link conge.lib user32.lib
+#+END_SRC
+
+Linking =user32.lib= is crucial because ConGE uses its functions.
