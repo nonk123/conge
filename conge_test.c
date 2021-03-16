@@ -55,9 +55,10 @@ my_tick (conge_ctx* ctx)
     conge_pixel fill = {' ', CONGE_BLACK, CONGE_WHITE};
 
     /* Helper functions. They won't draw outside of screen bounds. */
+    conge_fill (ctx, 4, 4, fill);
     conge_draw_line (ctx, 9, 9, 47, 14, fill);
     conge_draw_line (ctx, 6, 100, 6, 30, fill);
-    conge_fill (ctx, 4, 4, fill);
+    conge_draw_triangle (ctx, 40, 40, 50, 30, 30, 30, fill);
 
     /* Direct access. Might segfault if X or Y are out of screen bounds. */
     conge_get_pixel (ctx, x, y)->character = '*';

@@ -18,9 +18,14 @@
 #define _WIN32_WINNT 0x0500
 #include <windows.h>
 
+/* Weird stuff. */
+#undef near
+#undef far
+
 /* How many scancodes are supported. */
 #define CONGE_SCANCODE_COUNT 256
 
+#define CONGE_MIN(A, B) ((A) < (B) ? (A) : (B))
 #define CONGE_MAX(A, B) ((A) > (B) ? (A) : (B))
 
 typedef unsigned char conge_color;
@@ -122,6 +127,16 @@ int conge_fill (conge_ctx*, int, int, conge_pixel);
  */
 int conge_draw_line (conge_ctx*, int, int, int, int, conge_pixel);
 
+/*
+ * Draw a triangle defined by three of its
+ * vertices in _counter-clockwise_ order.
+ *
+ * Return codes:
+ *   0 on success.
+ *   1 if CTX is null.
+ */
+int conge_draw_triangle (conge_ctx*, int, int, int, int,
+                         int, int, conge_pixel);
 /*
  * Write a string with specified position and color onto the frame.
  *

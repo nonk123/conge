@@ -55,6 +55,46 @@ conge_draw_line (conge_ctx* ctx, int x0, int y0, int x1, int y1, conge_pixel fil
   return 0;
 }
 
+/*
+ * Used in triangle rasterization.
+ */
+int
+conge_edge_fun (double x0, double y0, double x1, double y1, double x2, double y2)
+{
+  return (x2 - x0) * (y1 - y0) - (y2 - y0) * (x1 - x0) >= 0.0;
+}
+
+int
+conge_draw_triangle (conge_ctx* ctx, int x0, int y0, int x1, int y1,
+                     int x2, int y2, conge_pixel fill)
+{
+  int bx0, by0, bx1, by1; /* bounding box */
+  int x, y;
+
+  if (ctx == NULL)
+    return 1;
+
+  bx0 = CONGE_MIN (x0, CONGE_MIN (x1, x2));
+  by0 = CONGE_MIN (y0, CONGE_MIN (y1, y2));
+  bx1 = CONGE_MAX (x0, CONGE_MAX (x1, x2));
+  by1 = CONGE_MAX (y0, CONGE_MAX (y1, y2));
+
+  for (x = bx0; x <= bx1; x++)
+    for (y = by0; y <= by1; y++)
+      {
+        int inside = 1;
+
+        inside &= conge_edge_fun (x0, y0, x1, y1, x, y);
+        inside &= conge_edge_fun (x1, y1, x2, y2, x, y);
+        inside &= conge_edge_fun (x2, y2, x0, y0, x, y);
+
+        if (inside)
+          conge_fill (ctx, x, y, fill);
+      }
+
+  return 0;
+}
+
 int
 conge_write_string (conge_ctx* ctx, char* string, int x, int y, conge_color fg, conge_color bg)
 {
