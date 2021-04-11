@@ -2,27 +2,23 @@
 
 static int x = 0, y = 0;
 
-/* This will be called every frame before rendering it. */
+/*
+ * This function will be called every frame before rendering it.
+ */
 void
 my_tick (conge_ctx* ctx)
 {
   /* Exit the game if escape is pressed. */
-  if (ctx->keys[CONGE_ESC])
+  if (conge_is_key_pressed (ctx, CONGE_ESC))
     {
       ctx->exit = 1;
       return;
     }
 
   /* Set the window title. */
-  strcpy (ctx->title, "conge test");
+  strcpy (ctx->title, "ConGE test");
 
-  if (ctx->grab)
-    {
-      /* When the mouse is grabbed, we use relative mouse position to move. */
-      x += round ( 0.1 * ctx->mouse_dx);
-      y += round (0.05 * ctx->mouse_dy);
-    }
-  else if (ctx->buttons & CONGE_LMB) /* check if LMB is held */
+  if (conge_is_button_pressed (ctx, CONGE_LMB)) /* check if LMB is down */
     {
       /* Mouse position is measured in characters on the screen. */
       x = ctx->mouse_x;
@@ -31,8 +27,11 @@ my_tick (conge_ctx* ctx)
   else
     {
       /* Keyboard and scrolling example. */
-      x += ctx->keys[CONGE_D] - ctx->keys[CONGE_A];
-      y += ctx->keys[CONGE_S] - ctx->keys[CONGE_W] - ctx->scroll;
+      x += conge_is_key_pressed (ctx, CONGE_D);
+      x -= conge_is_key_pressed (ctx, CONGE_A);
+
+      y += conge_is_key_pressed (ctx, CONGE_S);
+      y -= conge_is_key_pressed (ctx, CONGE_W) + ctx->scroll;
     }
 
   if (x < 0)
@@ -46,22 +45,18 @@ my_tick (conge_ctx* ctx)
   if (y >= ctx->rows)
     y = ctx->rows - 1;
 
-  /* Initiate mouse grab. */
-  if (ctx->keys[CONGE_LALT])
-    ctx->grab = !ctx->grab;
-
   {
     /* White rectangle. */
-    conge_pixel fill = {' ', CONGE_BLACK, CONGE_WHITE};
+    conge_pixel fill = conge_new_pixel (' ', CONGE_BLACK, CONGE_WHITE);
 
     /* Helper functions. They won't draw outside of screen bounds. */
     conge_fill (ctx, 4, 4, fill);
     conge_draw_line (ctx, 9, 9, 47, 14, fill);
     conge_draw_line (ctx, 6, 100, 6, 30, fill);
-    conge_draw_triangle (ctx, 40, 40, 50, 30, 30, 30, fill);
+    conge_fill_triangle (ctx, 40, 40, 50, 30, 30, 30, fill);
 
-    /* Direct access. Might segfault if X or Y are out of screen bounds. */
-    conge_get_pixel (ctx, x, y)->character = '*';
+    /* Altering a pixel's properties. */
+    conge_set_character (conge_get_pixel (ctx, x, y), '*');
   }
 
   /* Display a simple FPS counter. */
@@ -70,7 +65,7 @@ my_tick (conge_ctx* ctx)
     int y = ctx->rows - 1, x = ctx->cols;
 
     /* Get the current FPS and right-align it. */
-    x -= sprintf (fps_string, "FPS: %d", ctx->fps);
+    x -= sprintf (fps_string, "FPS: %2d", ctx->fps);
 
     /* Write the FPS in the bottom-right corner of the screen. */
     conge_write_string (ctx, fps_string, x, y, CONGE_BLACK, CONGE_WHITE);
