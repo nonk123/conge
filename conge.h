@@ -39,13 +39,15 @@ struct conge_ctx
   conge_pixel* frame; /* output: the frame being rendered */
   int rows, cols; /* window size in characters */
   double delta; /* previous frame's delta time */
+  double elapsed; /* seconds since the engine was started */
   double timestep; /* the fixed timestep for specified FPS */
   int scroll; /* forward if 1, backward if -1, and no scrolling if 0 */
   int mouse_x, mouse_y; /* the character the mouse is hovering over */
   int mouse_dx, mouse_dy; /* mouse position relative to the previous frame */
   int grab; /* output: set this to grab/ungrab the mouse */
   int exit; /* output: when set to true, the program will exit */
-  int fps; /* the current FPS */
+  double fps; /* the current FPS */
+  unsigned int ticks; /* the total amount of ticks done */
   char title[128]; /* output: the console window title */
   /* Internal API; avoid at all cost! */
   HANDLE _input, _output; /* console IO handles */
@@ -58,11 +60,11 @@ struct conge_ctx
 };
 
 /* The function called before rendering each frame. */
-typedef void (*conge_callback) (conge_ctx* ctx);
+typedef void (*conge_tick) (conge_ctx* ctx);
 
 /* TODO: add mouse wheel click. */
-#define CONGE_LMB (FROM_LEFT_1ST_BUTTON_PRESSED)
-#define CONGE_RMB (RIGHTMOST_BUTTON_PRESSED)
+#define CONGE_LMB FROM_LEFT_1ST_BUTTON_PRESSED
+#define CONGE_RMB RIGHTMOST_BUTTON_PRESSED
 
 /*
  * Initialize a new ConGE context. Return NULL if memory allocation failed.
@@ -81,7 +83,7 @@ conge_ctx* conge_init (void);
  *   2 - MAX_FPS is negative or zero.
  *   3 - failed to allocate one of the screen buffers.
  */
-int conge_run (conge_ctx* ctx, conge_callback tick, int max_fps);
+int conge_run (conge_ctx* ctx, conge_tick tick, int max_fps);
 
 /*
  * Free the allocated ConGE context.

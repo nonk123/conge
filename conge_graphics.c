@@ -88,7 +88,7 @@ conge_draw_line (conge_ctx* ctx, int x0, int y0, int x1, int y1, conge_pixel fil
   if (ctx == NULL)
     return 1;
 
-  /* Special case: just a dot. */
+  /* Special case: just a dot. Prevents division by zero. */
   if (step <= 0.01)
     {
       conge_fill (ctx, x0, y0, fill);
@@ -181,7 +181,7 @@ conge_write_string (conge_ctx* ctx, char* string, int x, int y, int fg, int bg)
 }
 
 /*
- * Internal: move the cursor unless putchar can do it.
+ * Move the cursor unless putchar can do it.
  */
 void
 conge_move_cursor_to (conge_ctx* ctx, int x, int y)
@@ -202,7 +202,7 @@ conge_move_cursor_to (conge_ctx* ctx, int x, int y)
 }
 
 /*
- * Internal: print all subsequent characters in this color.
+ * Print all subsequent characters in this color.
  */
 void
 conge_set_text_color (conge_ctx* ctx, int color)

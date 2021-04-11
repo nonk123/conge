@@ -2,6 +2,6 @@
 .\#*
 *~
 
-conge_test.exe
-conge.lib
 *.obj
+
+conge_test.exe

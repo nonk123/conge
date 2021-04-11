@@ -65,7 +65,7 @@ my_tick (conge_ctx* ctx)
     int y = ctx->rows - 1, x = ctx->cols;
 
     /* Get the current FPS and right-align it. */
-    x -= sprintf (fps_string, "FPS: %2d", ctx->fps);
+    x -= sprintf (fps_string, "FPS: %2d", (int) ctx->fps);
 
     /* Write the FPS in the bottom-right corner of the screen. */
     conge_write_string (ctx, fps_string, x, y, CONGE_BLACK, CONGE_WHITE);
@@ -81,10 +81,8 @@ int
 main (void)
 {
   int exit;
-  conge_ctx* ctx = conge_init ();
 
-  if (ctx == NULL)
-    return 1;
+  conge_ctx* ctx = conge_init ();
 
   /*
    * Run my_tick at most 24 times per second.
