@@ -87,7 +87,7 @@ main (void)
     return 1;
 
   /*
-   * Run my_tick 24 times a second.
+   * Run my_tick at most 24 times per second.
    * In a real game, you'd be using between 30 and 60 FPS.
    */
   exit = conge_run (ctx, my_tick, 24);
