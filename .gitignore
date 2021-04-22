@@ -4,4 +4,5 @@
 
 *.obj
 
-conge_test.exe
+conge_test_c.exe
+conge_test_cpp.exe

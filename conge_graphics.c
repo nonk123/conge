@@ -1,7 +1,7 @@
 #include "conge.h"
 
 conge_pixel
-conge_new_pixel (char character, int fg, int bg)
+conge_new_pixel (unsigned char character, int fg, int bg)
 {
   /* Squash two 16-color variables into 1 byte. */
   fg = (fg & 0xF) << 8;
@@ -10,7 +10,7 @@ conge_new_pixel (char character, int fg, int bg)
   return (conge_pixel) character | fg | bg;
 }
 
-char
+unsigned char
 conge_get_character (conge_pixel pixel)
 {
   return (pixel >> 0) & 0xFF; /* the first byte */
@@ -109,12 +109,12 @@ conge_draw_line (conge_ctx* ctx, int x0, int y0, int x1, int y1, conge_pixel fil
 }
 
 /*
- * Check if point (x2; y2) is within the triangle edge (x0; y0)--(x1; y1).
+ * Check if point (x; y) is within the triangle edge (x0; y0)--(x1; y1).
  */
 int
-conge_check_edge (double x0, double y0, double x1, double y1, double x2, double y2)
+conge_check_edge (double x, double y, double x0, double y0, double x1, double y1)
 {
-  return (x2 - x0) * (y1 - y0) - (y2 - y0) * (x1 - x0) >= 0.0;
+  return (x - x0) * (y1 - y0) - (y - y0) * (x1 - x0) >= 0.0;
 }
 
 int
@@ -135,13 +135,9 @@ conge_fill_triangle (conge_ctx* ctx, int x0, int y0, int x1, int y1,
   for (x = bx0; x <= bx1; x++)
     for (y = by0; y <= by1; y++)
       {
-        int inside = 1;
-
-        inside &= conge_check_edge (x0, y0, x1, y1, x, y);
-        inside &= conge_check_edge (x1, y1, x2, y2, x, y);
-        inside &= conge_check_edge (x2, y2, x0, y0, x, y);
-
-        if (inside)
+        if (conge_check_edge (x, y, x0, y0, x1, y1)
+            && conge_check_edge (x, y, x1, y1, x2, y2)
+            && conge_check_edge (x, y, x2, y2, x0, y0))
           conge_fill (ctx, x, y, fill);
       }
 
@@ -149,7 +145,7 @@ conge_fill_triangle (conge_ctx* ctx, int x0, int y0, int x1, int y1,
 }
 
 int
-conge_write_string (conge_ctx* ctx, char* string, int x, int y, int fg, int bg)
+conge_write_string (conge_ctx* ctx, const char* string, int x, int y, int fg, int bg)
 {
   int i, len;
 

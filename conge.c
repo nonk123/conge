@@ -34,7 +34,10 @@ conge_init (void)
   ctx->_window = GetConsoleWindow ();
 
   for (i = 0; i < CONGE__KEYS_LENGTH; i++)
-    ctx->_keys[i] = 0;
+    {
+      ctx->_keys[i] = 0;
+      ctx->_prev_keys[i] = 0;
+    }
 
   ctx->_buttons = 0;
 
@@ -92,7 +95,7 @@ conge_get_window_size (conge_ctx* ctx)
 }
 
 /* Make sure to call malloc before realloc. */
-#define ALLOC(var, size) ((var) == NULL ? malloc ((size)) : realloc ((var), (size)))
+#define ALLOC(var, size) ((var) == NULL ? malloc (size) : realloc ((var), (size)))
 
 int
 conge_run (conge_ctx* ctx, conge_tick tick, int max_fps)

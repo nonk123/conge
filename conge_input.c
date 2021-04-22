@@ -1,7 +1,7 @@
 #include "conge.h"
 
 int
-conge_is_key_pressed (conge_ctx* ctx, int code)
+conge_is_key_down (conge_ctx* ctx, int code)
 {
   int index, offset;
 
@@ -11,17 +11,34 @@ conge_is_key_pressed (conge_ctx* ctx, int code)
   index = code / (8 * sizeof (ctx->_keys));
   offset = code % (8 * sizeof (ctx->_keys));
 
-  /* !! converts it to a "real" boolean value (0 or 1). */
+  /* !! converts to a "true" boolean value (either 1 or 0). */
   return !!(ctx->_keys[index] & (1 << offset));
 }
 
 int
-conge_is_button_pressed (conge_ctx* ctx, int mask)
+conge_is_key_just_pressed (conge_ctx* ctx, int code)
+{
+  int index, offset, prev, curr;
+
+  if (ctx == NULL)
+    return 0;
+
+  index = code / (8 * sizeof (ctx->_keys));
+  offset = code % (8 * sizeof (ctx->_keys));
+
+  prev = ctx->_prev_keys[index] & (1 << offset);
+  curr = ctx->_keys[index] & (1 << offset);
+
+  return curr && !prev;
+}
+
+int
+conge_is_button_down (conge_ctx* ctx, int mask)
 {
   if (ctx == NULL)
     return 0;
   else
-    return ctx->_buttons & mask;
+    return !!(ctx->_buttons & mask);
 }
 
 /*
@@ -72,6 +89,10 @@ conge_handle_input (conge_ctx* ctx)
     return;
 
   ReadConsoleInput (ctx->_input, records, 10, &count);
+
+  /* Copy the previous frame's key flags. */
+  for (i = 0; i < CONGE__KEYS_LENGTH; i++)
+    ctx->_prev_keys[i] = ctx->_keys[i];
 
   for (i = 0; i < count; i++)
     {

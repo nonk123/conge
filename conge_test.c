@@ -9,7 +9,7 @@ void
 my_tick (conge_ctx* ctx)
 {
   /* Exit the game if escape is pressed. */
-  if (conge_is_key_pressed (ctx, CONGE_ESC))
+  if (conge_is_key_down (ctx, CONGE_ESC))
     {
       ctx->exit = 1;
       return;
@@ -18,7 +18,7 @@ my_tick (conge_ctx* ctx)
   /* Set the window title. */
   strcpy (ctx->title, "ConGE test");
 
-  if (conge_is_button_pressed (ctx, CONGE_LMB)) /* check if LMB is down */
+  if (conge_is_button_down (ctx, CONGE_LMB)) /* check if LMB is down */
     {
       /* Mouse position is measured in characters on the screen. */
       x = ctx->mouse_x;
@@ -27,11 +27,11 @@ my_tick (conge_ctx* ctx)
   else
     {
       /* Keyboard and scrolling example. */
-      x += conge_is_key_pressed (ctx, CONGE_D);
-      x -= conge_is_key_pressed (ctx, CONGE_A);
+      x += conge_is_key_down (ctx, CONGE_D);
+      x -= conge_is_key_down (ctx, CONGE_A);
 
-      y += conge_is_key_pressed (ctx, CONGE_S);
-      y -= conge_is_key_pressed (ctx, CONGE_W) + ctx->scroll;
+      y += conge_is_key_down (ctx, CONGE_S);
+      y -= conge_is_key_down (ctx, CONGE_W) + ctx->scroll;
     }
 
   if (x < 0)
@@ -78,7 +78,7 @@ my_tick (conge_ctx* ctx)
 }
 
 int
-main (void)
+main ()
 {
   int exit;
 

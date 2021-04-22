@@ -54,6 +54,7 @@ struct conge_ctx
   HWND _window; /* console window handle */
   conge_pixel* _backbuffer; /* double-buffering support */
   int _keys[CONGE__KEYS_LENGTH]; /* a 256-bit bitflag */
+  int _prev_keys[CONGE__KEYS_LENGTH]; /* handle "just pressed" events */
   int _buttons; /* the currently held mouse buttons */
   int _cursor_x, _cursor_y; /* prevent unnecessary cursor movements */
   int _last_color; /* same for changing the color */
@@ -69,13 +70,13 @@ typedef void (*conge_tick) (conge_ctx* ctx);
 /*
  * Initialize a new ConGE context. Return NULL if memory allocation failed.
  */
-conge_ctx* conge_init (void);
+conge_ctx* conge_init ();
 
 /*
  * Run the ConGE mainloop.
  *
- * TICK will be called at most MAX_FPS times per second, with the CTX argument
- * providing necessary information about the state of the engine.
+ * TICK must be a function which takes CTX as its only argument. It will be
+ * called at most MAX_FPS times per second.
  *
  * Return codes:
  *   0 - TICK requested exit (by setting CTX->exit to true).
@@ -93,9 +94,9 @@ void conge_free (conge_ctx*);
 /*
  * Create a new pixel from a character and its bg and fg colors.
  */
-conge_pixel conge_new_pixel (char, int fg, int bg);
+conge_pixel conge_new_pixel (unsigned char, int fg, int bg);
 
-char conge_get_character (conge_pixel);
+unsigned char conge_get_character (conge_pixel);
 void conge_set_character (conge_pixel*, char);
 
 int conge_get_fg (conge_pixel);
@@ -116,18 +117,25 @@ void conge_set_bg (conge_pixel*, int);
 conge_pixel* conge_get_pixel (conge_ctx*, int x, int y);
 
 /*
- * Return true if the given key, identified by its scancode, is pressed.
+ * Return 1 if the given key, identified by its scancode, is held down.
  *
- * Return false otherwise or if CTX is null.
+ * Return 0 otherwise or if CTX is null.
  */
-int conge_is_key_pressed (conge_ctx*, int code);
+int conge_is_key_down (conge_ctx*, int code);
 
 /*
- * Return true if the given mouse button (CONGE_LMB or CONGE_RMB) is pressed.
+ * Return 1 if the given key was just pressed.
  *
- * Return false otherwise or if CTX is null.
+ * Return 0 otherwise or if CTX is null.
  */
-int conge_is_button_pressed (conge_ctx*, int mask);
+int conge_is_key_just_pressed (conge_ctx*, int code);
+
+/*
+ * Return 1 if the given mouse button (CONGE_LMB or CONGE_RMB) is down.
+ *
+ * Return 0 otherwise or if CTX is null.
+ */
+int conge_is_button_down (conge_ctx*, int mask);
 
 /*
  * Fill the specified screen position with PIXEL.
@@ -169,7 +177,7 @@ int conge_fill_triangle (conge_ctx*, int, int, int, int,
  *   1 - CTX is null.
  *   2 - STRING is null.
  */
-int conge_write_string (conge_ctx*, char*, int, int, int fg, int bg);
+int conge_write_string (conge_ctx*, const char*, int, int, int fg, int bg);
 
 /*
  * Internal: draw the current frame.
